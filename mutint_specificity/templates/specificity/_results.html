@@ -6,7 +6,7 @@ indexes a dict by a variable.
 <div class="spec-section">
     <h4>Genomes</h4>
     <p class="spec-note">{{ results.genomes }} sample{{ results.genomes|pluralize }} analyzed.
-        Gene hits: {{ run_gene_rule|lower }}{% if run.params.excluded_genes %}, leaving out
+        Gene hits: {{ run_gene_rule }}{% if run.params.excluded_genes %}, leaving out
         {{ run.params.excluded_genes|join:", " }}{% endif %}{% if run.params.clones_only %};
         clones only{% endif %}. Run
         {% if state.finished_at %}{{ run.finished_at|date:"Y-m-d H:i" }}{% endif %}{% if state.created_by %}
@@ -68,8 +68,25 @@ indexes a dict by a variable.
         {% endfor %}
         </tbody>
     </table>
-    {% else %}
+    {% elif not results.genes.once %}
         <p class="text-muted">No mutation was assigned to a single gene.</p>
+    {% else %}
+        <p class="text-muted">No gene has more than one mutation.</p>
+    {% endif %}
+    {% if results.genes.once %}
+    <details>
+        <summary>{{ results.genes.once|length }} gene{{ results.genes.once|length|pluralize }} with one mutation</summary>
+        <table class="table table-condensed spec-table">
+            <thead><tr><th>Gene</th>
+                {% for t in results.treatments %}<th class="num">{{ t }}</th>{% endfor %}</tr></thead>
+            <tbody>
+            {% for row in results.genes.once %}
+                <tr><td><i>{{ row.gene }}</i></td>
+                    {% for n in row.genomes %}<td class="num">{{ n|default:"" }}</td>{% endfor %}</tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
     {% endif %}
 </div>
 
@@ -109,7 +126,7 @@ indexes a dict by a variable.
                     {% for p in entry.p %}<td class="num">{{ p }}</td>{% endfor %}</tr>
             {% endfor %}
             {% for entry in tests.vs_control %}
-                <tr class="{% if forloop.first %}spec-total{% endif %}"><td>{{ results.counts.control }} vs {{ entry.treatment }}</td>
+                <tr class="{% if forloop.first %}spec-divider{% endif %}"><td>{{ results.counts.control }} vs {{ entry.treatment }}</td>
                     {% for p in entry.p %}<td class="num">{{ p }}</td>{% endfor %}</tr>
             {% endfor %}
             </tbody>

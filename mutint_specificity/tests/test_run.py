@@ -61,6 +61,8 @@ class RunTestCase(SpecificityFixture):
         page = self.client.get(self.url())
         self.assertContains(page, "Dice similarity of mutated genes")
         self.assertContains(page, "<i>geneA</i>")
+        # geneC and geneE have one mutation each, so they are listed but folded away.
+        self.assertContains(page, "2 genes with one mutation")
         self.assertContains(page, "/specificity/download/%d/genes.csv" % run.pk)
 
     def test_a_control_treatment_is_compared_with_the_others(self):

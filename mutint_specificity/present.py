@@ -76,8 +76,12 @@ def _genes(genes, treatments):
             "significant": row["significant"],
             "significant_bonferroni": row["significant_bonferroni"],
         })
+    # A gene with one mutation is listed and never tested, and in a real experiment most genes
+    # are that: the TEE example has 21 genes tested and 70 hit once. The page folds them away
+    # beneath the table rather than making the tested ones a screen's scroll from each other.
     return {
-        "rows": rows,
+        "rows": [r for r in rows if r["total_mutations"] > 1],
+        "once": [r for r in rows if r["total_mutations"] <= 1],
         "genes_tested": genes["genes_tested"],
         "alpha": genes["alpha"],
         "bonferroni_alpha": _general(genes["bonferroni_alpha"]),
