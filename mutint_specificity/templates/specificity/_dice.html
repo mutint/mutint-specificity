@@ -1,0 +1,27 @@
+{% if dice.skipped %}
+    <p class="text-muted">{{ dice.skipped }}</p>
+{% else %}
+    <p class="spec-note">For every two samples, the Dice similarity of the genes each has a
+        mutation in: <b>within</b> averages the pairs from one treatment, <b>between</b> the
+        pairs from different ones. p is how often, of {{ dice.permutations }} random
+        reassignments of samples to treatments, genomes came out at least as much more alike
+        within treatments as observed.
+        {% if dice.pairwise_comparisons %}Pairs of treatments are highlighted at the Bonferroni
+        threshold for {{ dice.pairwise_comparisons }} comparisons, p &le; {{ dice.bonferroni_alpha }}.{% endif %}</p>
+    <table class="table table-condensed spec-table">
+        <thead><tr><th>Comparison</th><th class="num">Within</th><th class="num">Between</th>
+            <th class="num">Mean</th><th class="num">Reached</th><th class="num">p</th></tr></thead>
+        <tbody>
+        {% for row in dice.rows %}
+            <tr class="{% if row.significant %}spec-significant{% endif %}">
+                <td>{% if row.grand %}All treatments{% else %}{{ row.comparison }}{% endif %}</td>
+                <td class="num">{{ row.within }}</td>
+                <td class="num">{{ row.between }}</td>
+                <td class="num">{{ row.mean }}</td>
+                <td class="num">{% if row.at_least is not None %}{{ row.at_least }}{% endif %}</td>
+                <td class="num">{{ row.p }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endif %}

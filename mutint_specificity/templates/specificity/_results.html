@@ -1,0 +1,169 @@
+{% comment %}
+The finished analysis: `results` is `present.present(run.result)`, arranged so nothing here
+indexes a dict by a variable.
+{% endcomment %}
+
+<div class="spec-section">
+    <h4>Genomes</h4>
+    <p class="spec-note">{{ results.genomes }} sample{{ results.genomes|pluralize }} analyzed.
+        Gene hits: {{ run_gene_rule|lower }}{% if run.params.excluded_genes %}, leaving out
+        {{ run.params.excluded_genes|join:", " }}{% endif %}{% if run.params.clones_only %};
+        clones only{% endif %}. Run
+        {% if state.finished_at %}{{ run.finished_at|date:"Y-m-d H:i" }}{% endif %}{% if state.created_by %}
+        by {{ state.created_by }}{% endif %}.
+        <a href="/specificity/download/{{ run.pk }}/genes.csv">Genes (CSV)</a> &middot;
+        <a href="/specificity/download/{{ run.pk }}/matrix.csv">Genes by samples (CSV)</a></p>
+    <table class="table table-condensed spec-table">
+        <thead><tr><th>Treatment</th><th class="num">Samples</th></tr></thead>
+        <tbody>
+        {% for row in results.genomes_per_treatment %}
+            <tr><td>{{ row.treatment }}</td><td class="num">{{ row.genomes }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if results.left_out %}
+        <p class="spec-note">Not analyzed:
+            {% for entry in results.left_out %}<a href="{{ entry.url }}">{{ entry.sample }}</a>
+                ({{ entry.reason }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+    {% endif %}
+</div>
+
+<div class="spec-section">
+    <h4>Dice similarity of mutated genes</h4>
+    {% include "specificity/_dice.html" with dice=results.dice %}
+</div>
+{% if results.dice_excluding_significant %}
+<div class="spec-section">
+    <h4>Dice similarity without the significant genes</h4>
+    <p class="spec-note">The same test, leaving out the genes significant on their own below:
+        {{ results.dice_excluding_significant.excluded_genes|join:", " }}. Does specificity
+        remain beyond the genes that most obviously carry it?</p>
+    {% include "specificity/_dice.html" with dice=results.dice_excluding_significant %}
+</div>
+{% endif %}
+
+<div class="spec-section">
+    <h4>Genes</h4>
+    <p class="spec-note">Samples with a mutation in each gene, per treatment. A gene with more
+        than one mutation is tested (Fisher's exact test, two-sided) for whether its samples
+        are concentrated in the treatment with the most of them. Highlighted: p &le;
+        {{ results.genes.alpha }}; bold: p &le; {{ results.genes.bonferroni_alpha }}, the
+        Bonferroni correction for {{ results.genes.genes_tested }} gene{{ results.genes.genes_tested|pluralize }} tested.</p>
+    {% if results.genes.rows %}
+    <table class="table table-condensed spec-table">
+        <thead><tr><th>Gene</th>
+            {% for t in results.treatments %}<th class="num">{{ t }}</th>{% endfor %}
+            <th class="num">Samples</th><th class="num">Mutations</th><th>Most hit</th>
+            <th class="num">p</th></tr></thead>
+        <tbody>
+        {% for row in results.genes.rows %}
+            <tr class="{% if row.significant %}spec-significant{% endif %}{% if row.significant_bonferroni %} spec-bonferroni{% endif %}">
+                <td><i>{{ row.gene }}</i></td>
+                {% for n in row.genomes %}<td class="num">{{ n|default:"" }}</td>{% endfor %}
+                <td class="num">{{ row.total_genomes }}</td>
+                <td class="num">{{ row.total_mutations }}</td>
+                <td>{{ row.most_hit_treatment }}</td>
+                <td class="num">{{ row.p }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p class="text-muted">No mutation was assigned to a single gene.</p>
+    {% endif %}
+</div>
+
+<div class="spec-section">
+    <h4>Mutation counts</h4>
+    <p class="spec-note"><b>Total</b> counts every mutation; <b>gene</b> only those assigned to a
+        gene.</p>
+    <table class="table table-condensed spec-table">
+        <thead><tr><th>Treatment</th><th class="num">Samples</th><th class="num">Total</th>
+            <th class="num">Gene</th><th class="num">Mean total</th><th class="num">Mean gene</th></tr></thead>
+        <tbody>
+        {% for row in results.counts.summaries %}
+            <tr><td>{{ row.treatment }}</td><td class="num">{{ row.genomes }}</td>
+                <td class="num">{{ row.total }}</td><td class="num">{{ row.valid }}</td>
+                <td class="num">{{ row.mean_total }}</td><td class="num">{{ row.mean_valid }}</td></tr>
+        {% endfor %}
+        {% for row in results.counts.footer %}
+            <tr class="{% if forloop.first %}spec-total{% endif %}"><td>{{ row.treatment }}</td><td class="num">{{ row.genomes }}</td>
+                <td class="num">{{ row.total }}</td><td class="num">{{ row.valid }}</td>
+                <td class="num">{{ row.mean_total }}</td><td class="num">{{ row.mean_valid }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% for kind, tests in results.counts.tests.items %}
+        <p class="spec-note" style="margin-top: 12px;"><b>{% if kind == "total" %}Total{% else %}Gene{% endif %} mutations.</b>
+            Fewest: {{ tests.minimum }} ({{ tests.minimum_genomes }}); most: {{ tests.maximum }}
+            ({{ tests.maximum_genomes }}). Kruskal-Wallis across treatments: p =
+            {{ tests.kruskal_wallis }}{% if results.counts.control %}; excluding
+            {{ results.counts.control }}: p = {{ tests.kruskal_wallis_excluding_control }}{% endif %}.</p>
+        <table class="table table-condensed spec-table">
+            <thead><tr><th>Mann-Whitney</th><th class="num">Fewer, p</th>
+                <th class="num">More, p</th><th class="num">Two-sided p</th></tr></thead>
+            <tbody>
+            {% for entry in tests.vs_rest %}
+                <tr><td>{{ entry.treatment }} vs the rest</td>
+                    {% for p in entry.p %}<td class="num">{{ p }}</td>{% endfor %}</tr>
+            {% endfor %}
+            {% for entry in tests.vs_control %}
+                <tr class="{% if forloop.first %}spec-total{% endif %}"><td>{{ results.counts.control }} vs {{ entry.treatment }}</td>
+                    {% for p in entry.p %}<td class="num">{{ p }}</td>{% endfor %}</tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+    {% if results.counts.control %}
+        <p class="spec-note">For "{{ results.counts.control }} vs" rows, "fewer" means the control has fewer.</p>
+    {% endif %}
+
+    <details>
+        <summary>Per sample</summary>
+        <table class="table table-condensed spec-table">
+            <thead><tr><th>Sample</th><th>Treatment</th><th class="num">Total</th><th class="num">Gene</th></tr></thead>
+            <tbody>
+            {% for row in results.counts.per_genome %}
+                <tr><td><a href="{{ row.url }}">{{ row.genome }}</a></td><td>{{ row.treatment }}</td>
+                    <td class="num">{{ row.total }}</td><td class="num">{{ row.valid }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+</div>
+
+<div class="spec-section">
+    <h4>Mutation types</h4>
+    <table class="table table-condensed spec-table">
+        <thead><tr><th>Treatment</th><th class="num">SNP</th><th class="num">Synonymous</th>
+            <th class="num">Nonsynonymous</th><th class="num">DEL</th><th class="num">AMP</th>
+            <th class="num">INS</th><th class="num">SUB</th><th class="num">INV</th>
+            <th class="num">CON</th><th class="num">MOB</th>
+            {% for family in results.types.families %}<th class="num">{{ family }}</th>{% endfor %}</tr></thead>
+        <tbody>
+        {% for row in results.types.rows %}
+            <tr><td>{{ row.treatment }}</td>{% for n in row.cells %}<td class="num">{{ n }}</td>{% endfor %}</tr>
+        {% endfor %}
+        <tr class="spec-total"><td>{{ results.types.total.treatment }}</td>
+            {% for n in results.types.total.cells %}<td class="num">{{ n }}</td>{% endfor %}</tr>
+        </tbody>
+    </table>
+    <p class="spec-note">Synonymous and nonsynonymous (nonsense included) are breseq's own
+        classification of each SNP; a SNP with neither is intergenic, noncoding or in a pseudogene.</p>
+
+    <details>
+        <summary>Deletions and amplifications</summary>
+        <table class="table table-condensed spec-table">
+            <thead><tr><th>Treatment</th><th>Sample</th><th>Type</th><th class="num">Length</th><th>Gene</th></tr></thead>
+            <tbody>
+            {% for entry in results.types.amp_del %}
+                <tr><td>{{ entry.treatment }}</td><td>{{ entry.genome }}</td><td>{{ entry.type }}</td>
+                    <td class="num">{{ entry.size|default:"" }}</td><td>{% if entry.gene %}<i>{{ entry.gene }}</i>{% endif %}</td></tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-muted">None.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+</div>

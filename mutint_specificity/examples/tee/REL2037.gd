@@ -1,0 +1,20 @@
+#=GENOME_DIFF	1.0
+#=TITLE	REL2037
+#=TIME	2000
+#=POPULATION	-1
+#=TREATMENT	32C
+#=REFSEQ	https://raw.githubusercontent.com/barricklab/LTEE/7da91974eafac0c5a8f903ae57275795d4395af2/reference/REL606.gbk
+#=READSEQ	ftp://ftp.sra.ebi.ac.uk/vol1/fastq/SRR396/SRR396858/SRR396858.fastq.gz
+SNP	1	.	REL606	1329516	T
+MOB	2	.	REL606	1345332	IS1	1	9
+DEL	3	.	REL606	1609175	7554	between=IS3
+INS	4	.	REL606	1733297	CGTATGAA	repeat_length=8	repeat_new_copies=2	repeat_ref_copies=1	repeat_seq=CGTATGAA
+SNP	5	.	REL606	2193779	T
+SNP	6	.	REL606	2761505	A
+SNP	7	.	REL606	3217095	T
+SNP	8	.	REL606	3762741	T
+INS	9	.	REL606	3875632	T	repeat_length=1	repeat_new_copies=8	repeat_ref_copies=7	repeat_seq=T
+INS	10	.	REL606	3893551	G
+DEL	11	.	REL606	3894997	6934	mediated=IS150
+MOB	12	.	REL606	4524522	IS186	1	6
+SNP	13	.	REL606	4616438	G

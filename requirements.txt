@@ -1,0 +1,17 @@
+# Install dependencies from mutint-core first:
+#   pip install -r mutint-core/requirements.txt
+#
+# mutint-specificity-specific additions:
+#
+# evospec is the statistics: the Dice randomization test, the per-gene Fisher's exact test and
+# the mutation-count tests of Deatherage et al. 2017, as a library. It brings SciPy, the first
+# in-process SciPy in the suite (numpy is already core's).
+#
+# Pinned to a full git SHA rather than a version, for the reason genomediff is in
+# mutint-core/requirements.txt: evospec is not on PyPI yet, and a direct URL carries no
+# version for a requirement to match on -- so pip will not move an installed copy onto a new
+# commit on the strength of this line alone. After changing the SHA, an existing environment
+# needs
+#   pip install --force-reinstall --no-deps 'git+https://github.com/barricklab/evospec.git@<sha>'
+# (dev: `pip install -e /path/to/evospec`)
+evospec @ git+https://github.com/barricklab/evospec.git@1974d81b81439c68cb827a0f67e81c4ea110ea74

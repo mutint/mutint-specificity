@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load view_filter %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block scripts_and_style %}
+    <style>
+        .spec-form .checkbox-inline { margin-right: 12px; margin-left: 0; }
+        .spec-form .form-inline .form-group { margin-right: 16px; }
+        .spec-form textarea { font-family: monospace; }
+        .spec-section { margin-top: 24px; }
+        .spec-section h4 { margin-bottom: 4px; }
+        .spec-note { color: #777; font-size: 12px; margin-bottom: 8px; }
+        table.spec-table { width: auto; }
+        table.spec-table td.num, table.spec-table th.num { text-align: right; }
+        table.spec-table tr.spec-significant td { background-color: #dff0d8; }
+        table.spec-table tr.spec-significant.spec-bonferroni td { font-weight: bold; }
+        table.spec-table tr.spec-total td { border-top: 2px solid #ddd; font-weight: bold; }
+        .spec-progress { max-width: 480px; margin-bottom: 6px; }
+    </style>
+{% endblock %}
+
+{% block header %}
+    <b><a href="/project/{{ project_id }}">{{ project_name }}</a>: {{ experiment_name }}</b> - Specificity
+{% endblock %}
+
+{% block content %}
+<div class="col-lg-12 spec-form">
+    <h3>Specificity</h3>
+    <p>Was evolution specific to the treatment each population evolved under? This compares
+        the genes mutated in samples from different treatments, as in
+        <a href="https://doi.org/10.1073/pnas.1616132114" target="_blank" rel="noopener">Deatherage
+        <i>et al.</i> 2017</a>. Each sample with a treatment is one genome. A mutation counts
+        towards a gene when breseq's annotation names exactly one gene it inactivates,
+        overlaps or sits in the promoter of (within 150 bp of the start).</p>
+
+    {% if not treatments %}
+        <div class="alert alert-info">None of this experiment's samples has a treatment yet.
+            Set one on the <a href="/experiment/{{ experiment_id }}/samples/">Samples</a> page.</div>
+    {% endif %}
+
+    <form method="post" action="/specificity/?experiment_id={{ experiment_id }}" id="spec-form">
+        {% csrf_token %}
+        {% if treatments %}
+        <div class="form-group">
+            <label>Treatments</label><br>
+            {% for t in treatments %}
+                <label class="checkbox-inline">
+                    <input type="checkbox" name="treatments" value="{{ t.label }}"
+                           {% if t.selected %}checked{% endif %}> {{ t.label }}
+                </label>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="form-inline">
+            <div class="form-group">
+                <label for="spec-gene-rule">Gene hits</label>
+                <select class="form-control input-sm" name="gene_rule" id="spec-gene-rule">
+                    {% for value, label in gene_rules %}
+                        <option value="{{ value }}" {% if value == settings.gene_rule %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="spec-control">Control treatment</label>
+                <select class="form-control input-sm" name="control" id="spec-control">
+                    <option value="">None</option>
+                    {% for t in treatments %}
+                        <option value="{{ t.label }}" {% if t.label == settings.control %}selected{% endif %}>{{ t.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="spec-permutations">Randomizations</label>
+                <input class="form-control input-sm" type="number" min="0"
+                       max="{{ max_permutations }}" step="1" name="permutations"
+                       id="spec-permutations" value="{{ settings.permutations }}" style="width: 110px;">
+            </div>
+            <div class="form-group">
+                <label for="spec-seed">Seed</label>
+                <input class="form-control input-sm" type="number" min="0" step="1" name="seed"
+                       id="spec-seed" value="{{ settings.seed }}" style="width: 80px;">
+            </div>
+            <div class="form-group">
+                <label for="spec-alpha">Significance</label>
+                <input class="form-control input-sm" type="text" name="alpha" id="spec-alpha"
+                       value="{{ settings.alpha }}" style="width: 60px;">
+            </div>
+        </div>
+        <div class="form-group" style="margin-top: 8px;">
+            <label class="checkbox-inline">
+                <input type="checkbox" name="pairwise" value="1" {% if settings.pairwise %}checked{% endif %}>
+                Compare each pair of treatments too
+            </label>
+            <label class="checkbox-inline">
+                <input type="checkbox" name="clones_only" value="1" {% if settings.clones_only %}checked{% endif %}>
+                Clones only (leave out population samples)
+            </label>
+        </div>
+        <div class="form-group">
+            <label for="spec-excluded">Genes to leave out</label>
+            <textarea class="form-control input-sm" name="excluded_genes" id="spec-excluded"
+                      rows="1" style="max-width: 640px;"
+                      placeholder="Gene names, separated by spaces or commas">{{ excluded_genes_text }}</textarea>
+        </div>
+        {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+        <div class="btn-row">
+            {% if can_run %}
+                <button type="submit" class="btn btn-primary" {% if not treatments %}disabled{% endif %}>Run</button>
+                {% if run and state.finished %}
+                    <button type="submit" class="btn btn-default" name="again" value="1">Run again</button>
+                {% endif %}
+            {% else %}
+                <span class="text-muted">Sign in to run an analysis.</span>
+            {% endif %}
+        </div>
+    </form>
+
+    {% view_filter_summary own_rules="Computed from every mutation called in each sample, with the ancestor's subtracted, and from the settings above -- not through your view filter." %}
+
+    {% if run %}
+        <div class="spec-section" id="spec-run" data-status-url="/specificity/status/{{ run.pk }}"
+             data-finished="{{ state.finished|yesno:'1,0' }}">
+            {% if not state.finished %}
+                <h4>{% if state.status == "running" %}Running{% else %}Queued{% endif %}</h4>
+                <div class="progress spec-progress">
+                    <div class="progress-bar" id="spec-bar" role="progressbar"
+                         style="width: {{ state.percent }}%;">{{ state.percent }}%</div>
+                </div>
+                <p class="spec-note" id="spec-status-line">
+                    {% if state.waiting_for_worker %}
+                        <span style="color: #a94442;">Waiting for a worker &mdash; run
+                            <code>./mutint db_worker</code> if none is running.</span>
+                    {% elif state.cancel_requested %}
+                        Cancelling&hellip;
+                    {% else %}
+                        {{ state.progress }} of {{ state.total }} randomizations.
+                    {% endif %}
+                    This page reloads when the analysis finishes.
+                </p>
+                {% if state.cancel_url %}
+                    <button type="button" class="btn btn-default btn-sm" id="spec-cancel"
+                            data-url="{{ state.cancel_url }}">Cancel</button>
+                {% endif %}
+            {% elif state.status == "failed" %}
+                <div class="alert alert-danger">The analysis failed: {{ state.error }}
+                    {% if state.log_url %}<a href="{{ state.log_url }}">Log</a>{% endif %}</div>
+            {% elif state.status == "cancelled" %}
+                <div class="alert alert-warning">This analysis was cancelled.</div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if results %}
+        {% include "specificity/_results.html" %}
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    var box = document.getElementById("spec-run");
+    if (!box || box.getAttribute("data-finished") === "1") {
+        return;
+    }
+    var cancel = document.getElementById("spec-cancel");
+    if (cancel) {
+        cancel.addEventListener("click", function () {
+            cancel.disabled = true;
+            window.mutintPost(cancel.getAttribute("data-url"), {}).then(function () {
+                document.getElementById("spec-status-line").textContent = "Cancelling…";
+            }).catch(function (failure) {
+                cancel.disabled = false;
+                document.getElementById("spec-status-line").textContent =
+                    "Could not cancel: " + failure.message;
+            });
+        });
+    }
+    var bar = document.getElementById("spec-bar");
+    var line = document.getElementById("spec-status-line");
+    var timer = setInterval(function () {
+        fetch(box.getAttribute("data-status-url"), {credentials: "same-origin"})
+            .then(function (response) { return response.ok ? response.json() : null; })
+            .then(function (state) {
+                if (!state) { return; }
+                if (state.finished) {
+                    clearInterval(timer);
+                    window.location.reload();
+                    return;
+                }
+                bar.style.width = state.percent + "%";
+                bar.textContent = state.percent + "%";
+                if (state.status === "running" && !state.cancel_requested) {
+                    line.textContent = state.progress + " of " + state.total +
+                        " randomizations. This page reloads when the analysis finishes.";
+                }
+            })
+            .catch(function () { /* a missed tick; the next one asks again */ });
+    }, 2000);
+});
+</script>
+{% endblock %}
