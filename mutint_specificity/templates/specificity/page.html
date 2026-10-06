@@ -22,9 +22,7 @@
     </style>
 {% endblock %}
 
-{% block header %}
-    <b><a href="/project/{{ project_id }}">{{ project_name }}</a>: {{ experiment_name }}</b> - Specificity
-{% endblock %}
+{% block header %}{% include "experiment_header.html" with page="Specificity" %}{% endblock %}
 
 {% block content %}
 <div class="col-lg-12 spec-form">
