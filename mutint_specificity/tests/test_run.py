@@ -36,7 +36,7 @@ class RunTestCase(SpecificityFixture):
     def test_the_page_renders_with_nothing_run(self):
         response = self.client.get(self.url())
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, 'class="mutint-experiment-name">E</span></b> &mdash; Specificity')
+        self.assertContains(response, 'class="mutint-experiment-name">E</span></b> <span class="mutint-header-sep">&raquo;</span> Specificity')
         self.assertContains(response, 'value="hot"')
         self.assertNotContains(response, "Dice similarity of mutated genes")
 
