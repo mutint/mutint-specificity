@@ -22,6 +22,7 @@ from mutint_common.logger import user_extra
 from mutint_common.util import get_user_context
 from mutint_experiment.models import Experiment
 from mutint_experiment.permissions import can_view_project
+from mutint_export.util import safe_filename
 from mutint_jobs import jobs as jobs_api
 
 from mutint_specificity import params as settings
@@ -165,7 +166,8 @@ def download(request, pk, what):
         present.matrix_rows(run.result)
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = (
-        'attachment; filename="specificity-%d-%s.csv"' % (run.experiment_id, what))
+        'attachment; filename="specificity-%s-%s-%s.csv"'
+        % (safe_filename(run.experiment.project.name), safe_filename(run.experiment.name), what))
     writer = csv.writer(response)
     for row in rows:
         writer.writerow(row)
