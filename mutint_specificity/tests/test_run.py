@@ -130,13 +130,15 @@ class RunTestCase(SpecificityFixture):
         self.assertEqual("finished", state["status"])
 
         genes = self.client.get("/specificity/download/%d/genes.csv" % run.pk)
-        self.assertEqual("text/csv", genes["Content-Type"])
-        lines = genes.content.decode().splitlines()
+        self.assertEqual("text/csv; charset=utf-8", genes["Content-Type"])
+        # The UTF-8 mark in front, for Excel's sake.
+        self.assertTrue(genes.content.startswith("\ufeff".encode("utf-8")))
+        lines = genes.content.decode("utf-8-sig").splitlines()
         self.assertTrue(lines[0].startswith("gene,genomes: hot,genomes: cold"))
         self.assertTrue(lines[1].startswith("geneA,4,0"))
 
         matrix = self.client.get("/specificity/download/%d/matrix.csv" % run.pk)
-        rows = matrix.content.decode().splitlines()
+        rows = matrix.content.decode("utf-8-sig").splitlines()
         self.assertEqual("treatment", rows[1].split(",")[0])
 
     def test_a_change_to_the_mutations_discards_every_run(self):

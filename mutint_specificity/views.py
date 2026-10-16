@@ -28,6 +28,7 @@ from mutint_jobs import jobs as jobs_api
 from mutint_specificity import params as settings
 from mutint_specificity import present, tasks, util
 from mutint_specificity.models import SpecificityRun
+from mutint_common.spreadsheet import csv_response
 
 logger = logging.getLogger("mutint_specificity.views")
 
@@ -164,10 +165,8 @@ def download(request, pk, what):
         return HttpResponse("Unknown run.", status=404, content_type="text/plain")
     rows = present.gene_table_rows(run.result) if what == "genes" else \
         present.matrix_rows(run.result)
-    response = HttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = (
-        'attachment; filename="specificity-%s-%s-%s.csv"'
-        % (safe_filename(run.experiment.project.name), safe_filename(run.experiment.name), what))
+    response = csv_response("specificity-%s-%s-%s.csv" % (
+        safe_filename(run.experiment.project.name), safe_filename(run.experiment.name), what))
     writer = csv.writer(response)
     for row in rows:
         writer.writerow(row)

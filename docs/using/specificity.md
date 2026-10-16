@@ -60,7 +60,8 @@ that a worker is running (`./mutint start` runs them). The job is also listed on
 - **When results are discarded.** A stored answer is thrown away when the experiment's
   mutations change, for example after an import, an edit or a new ancestor.
 
-Both tables can be downloaded as CSV: the genes, and the genes-by-samples matrix.
+Both tables can be downloaded as CSV: the genes, and the genes-by-samples matrix. Each
+opens in Excel as UTF-8, so gene names keep their accents and symbols.
 
 ## An example
 
